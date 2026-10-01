@@ -1,0 +1,12 @@
+create extension if not exists pgcrypto;
+create table if not exists public.categories(id uuid primary key default gen_random_uuid(),name text not null unique,slug text not null unique,description text);
+create table if not exists public.articles(id uuid primary key default gen_random_uuid(),title text not null,slug text not null unique,excerpt text,content text not null,image_url text,category_id uuid references public.categories(id) on delete set null,author text,status text not null default 'draft' check(status in ('draft','published')),published_at timestamptz,views bigint not null default 0,created_at timestamptz not null default now(),updated_at timestamptz not null default now());
+insert into public.categories(name,slug) values ('Политика','politika'),('Друштво','drustvo'),('Црна Гора','crna-gora'),('Култура','kultura'),('Вјера','vjera'),('Историја','istorija'),('Видео','video'),('Наш став','nas-stav') on conflict(slug) do nothing;
+alter table public.categories enable row level security; alter table public.articles enable row level security;
+create policy "public read categories" on public.categories for select using (true);
+create policy "public read published articles" on public.articles for select using (status='published' or auth.role()='authenticated');
+create policy "authenticated insert articles" on public.articles for insert to authenticated with check (true);
+create policy "authenticated update articles" on public.articles for update to authenticated using (true) with check (true);
+create policy "authenticated delete articles" on public.articles for delete to authenticated using (true);
+create index if not exists articles_published_idx on public.articles(status,published_at desc);
+create index if not exists articles_category_idx on public.articles(category_id);
